@@ -69,7 +69,8 @@ interface BestBansChampionStats {
 interface BestBansStats {
     tier: Tier;
     patch: string;
-    average_win_rate: number
+    average_win_rate: number;
+    last_updated: Date;
     champions: BestBansChampionStats[];
 }
 
@@ -132,7 +133,7 @@ function mergeLolalyticsStats(stats: LolalyticsLaneStats[]): LolalyticsStats {
     return emptyStats;
 }
 
-export async function getStats_api(tier: Tier, patch: string, region: Region = Region.ALL, storeLaneStats: boolean = false): Promise<BestBansStats> {
+export async function getStats(tier: Tier, patch: string, region: Region = Region.ALL, storeLaneStats: boolean = false): Promise<BestBansStats> {
     const url = `https://apix1.op.lol/tierlist/7/?lane=all&patch=${patch}&tier=${tier}&queue=420&region=${region}`
     const body: any = await got(url).json();
     const championIDs = await getChampionIDs(patch);
@@ -143,6 +144,7 @@ export async function getStats_api(tier: Tier, patch: string, region: Region = R
         tier: tier,
         patch: patch,
         average_win_rate: parseFloat(avgWinRate.toFixed(4)),
+        last_updated: new Date(),
         champions: []
     };
     for (const key in championIDs) {
