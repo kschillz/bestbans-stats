@@ -1,5 +1,6 @@
 import got from "got/dist/source";
-import { JSDOM } from "jsdom";
+
+import { getChampionIDs } from './ddragon';
 
 export enum Tier {
     IRON = 'iron',
@@ -54,7 +55,8 @@ enum LaneID {
 }
 
 interface BestBansChampionStats {
-    cid: string;
+    key: string;
+    id: string;
     name: string;
     pick_rate: number;
     win_rate: number;
@@ -130,15 +132,6 @@ function mergeLolalyticsStats(stats: LolalyticsLaneStats[]): LolalyticsStats {
     return emptyStats;
 }
 
-async function getChampionIDs(version: string) {
-    const url = `https://cdn.lolalytics.com/v/${version}/tooltip/eng/champion.json`
-    const body: any = await got(url).json();
-    for (let key in body) {
-        body[key] = JSDOM.fragment(body[key]).querySelector('h3').textContent
-    }
-    return body;
-}
-
 export async function getStats_api(tier: Tier, patch: string, region: Region = Region.ALL, storeLaneStats: boolean = false): Promise<BestBansStats> {
     const url = `https://apix1.op.lol/tierlist/7/?lane=all&patch=${patch}&tier=${tier}&queue=420&region=${region}`
     const body: any = await got(url).json();
@@ -152,16 +145,17 @@ export async function getStats_api(tier: Tier, patch: string, region: Region = R
         average_win_rate: parseFloat(avgWinRate.toFixed(4)),
         champions: []
     };
-    for (const cid in championIDs) {
+    for (const key in championIDs) {
         const championLaneStats: LolalyticsLaneStats[] = [];
         for (const lane in body.lane) {
-            const laneStats = convertLolalyticsLaneStats(body.lane[lane].cid[cid]);
+            const laneStats = convertLolalyticsLaneStats(body.lane[lane].cid[key]);
             championLaneStats.push(laneStats);
         }
         const mergedStats = mergeLolalyticsStats(championLaneStats);
         const championStats: BestBansChampionStats = {
-            cid: cid,
-            name: championIDs[cid],
+            key: key,
+            id: championIDs[key]['id'],
+            name: championIDs[key]['name'],
             pick_rate: parseFloat((mergedStats.games_played / totalGames).toFixed(4)),
             win_rate: parseFloat((mergedStats.games_won / mergedStats.games_played).toFixed(4)),
             ban_rate: parseFloat(mergedStats.ban_rate.toFixed(4)),
