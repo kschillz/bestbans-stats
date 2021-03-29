@@ -17,7 +17,7 @@ async function getLatestPatch() {
         const path = `static/${patch}`;
         fs.mkdirSync(path, { recursive: true });
         let bestBans_api = await getStats_api(Tier[tier], patch);
-        fs.writeFileSync(`${path}/${tier}.json`, JSON.stringify(bestBans_api));
+        fs.writeFileSync(`${path}/${tier.toLowerCase()}.json`, JSON.stringify(bestBans_api));
         console.log(tier);
         bestBans_api.champions.sort((x, y) => y.ban_score - x.ban_score).slice(0, 5).forEach(champion => {
             console.log(`\t${champion.name} | ${champion.win_rate} | ${champion.ban_score}`);
