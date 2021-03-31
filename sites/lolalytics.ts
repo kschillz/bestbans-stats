@@ -166,7 +166,7 @@ export async function getStats(tier: Tier, patch: string, region: Region = Regio
             key: key,
             id: championIDs[key]['id'],
             name: championIDs[key]['name'],
-            pick_rate: parseFloat((mergedStats.games_played / totalGames).toFixed(4)),
+            pick_rate: parseFloat((mergedStats.games_played / totalGames).toFixed(6)),
             win_rate: parseFloat((mergedStats.games_won / mergedStats.games_played).toFixed(4)),
             ban_rate: parseFloat(mergedStats.ban_rate.toFixed(4)),
             games_played: mergedStats.games_played,
