@@ -107,6 +107,9 @@ function jackson_z(winRate, gamesPlayed, expectedWinRate) {
 }
 
 function convertLolalyticsLaneStats(input: any[]): LolalyticsLaneStats {
+    if (input == undefined) {
+        return;
+    }
     return {
         rank: input[0],
         lane: input[1],
@@ -150,8 +153,13 @@ export async function getStats(tier: Tier, patch: string, region: Region = Regio
     for (const key in championIDs) {
         const championLaneStats: LolalyticsLaneStats[] = [];
         for (const lane in body.lane) {
-            const laneStats = convertLolalyticsLaneStats(body.lane[lane].cid[key]);
-            championLaneStats.push(laneStats);
+            if (body.lane[lane].cid[key] != undefined) {
+                const laneStats = convertLolalyticsLaneStats(body.lane[lane].cid[key]);
+                championLaneStats.push(laneStats);
+            }
+        }
+        if (championLaneStats.length == 0) {
+            continue;
         }
         const mergedStats = mergeLolalyticsStats(championLaneStats);
         const championStats: BestBansChampionStats = {

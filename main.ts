@@ -2,9 +2,6 @@ import { Tier, getStats } from './sites/lolalytics';
 import * as fs from 'fs';
 import got from 'got/dist/source';
 
-// getStats_puppeteer(Tier.SILVER);
-// getStats_puppeteer(Tier.PLATINUM_PLUS);
-
 async function getLatestPatch() {
     const url = 'https://ddragon.leagueoflegends.com/api/versions.json';
     const body = await got(url).json();
