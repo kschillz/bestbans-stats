@@ -9,12 +9,16 @@ async function getLatestPatch() {
 }
 
 (async () => {
+    const patch = await getLatestPatch();
+    const path = `static/${patch}`;
+    fs.mkdirSync(path, { recursive: true });
     for (const tier in Tier) {
-        const patch = await getLatestPatch();
-        const path = `static/${patch}`;
-        fs.mkdirSync(path, { recursive: true });
         let bestBans_api = await getStats(Tier[tier], patch);
         fs.writeFileSync(`${path}/${tier.toLowerCase()}.json`, JSON.stringify(bestBans_api));
         console.log(tier);
     }
+    fs.writeFileSync('static/meta.json', JSON.stringify({
+        last_updated: new Date(),
+        latest_patch: patch,
+    }))
 })();
