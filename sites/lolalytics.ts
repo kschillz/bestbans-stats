@@ -137,7 +137,7 @@ function mergeLolalyticsStats(stats: LolalyticsLaneStats[]): LolalyticsStats {
 }
 
 export async function getStats(tier: Tier, patch: string, region: Region = Region.ALL, storeLaneStats: boolean = false): Promise<BestBansStats> {
-    const url = `https://axe.lolalytics.com/tierlist/1/?lane=all&patch=${patch}&tier=${tier}&queue=420&region=${region}`
+    const url = `https://axe.lolalytics.com/tierlist/2/?lane=all&patch=${patch}&tier=${tier}&queue=420&region=${region}`
     const body: any = await got(url).json();
     const championIDs = await getChampionIDs(patch);
     const totalGames = body.pick;
