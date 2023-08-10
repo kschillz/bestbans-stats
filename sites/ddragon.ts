@@ -13,5 +13,3 @@ export async function getChampionIDs(version: string) {
     }
     return championIDs;
 }
-
-getChampionIDs('11.6.1');
