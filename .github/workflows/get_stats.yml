@@ -6,7 +6,7 @@ on:
       - main
   workflow_dispatch:
   schedule:
-    - cron: '24 */8 * * *'
+    - cron: '24 12 * * *'
 
 jobs:
   get-stats:
