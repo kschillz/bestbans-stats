@@ -104,6 +104,7 @@ interface ChampionLaneStats {
 interface ChampionPBI {
 	name: string;
 	pbi: number;
+	id: string;
 }
 
 interface LolalyticsStats {
@@ -148,7 +149,8 @@ async function loadHtml(page: Page, url: string) {
 
 async function getWinRate(page: Page, tier: Tier, patch: string) {
 	using _ = timer("getWinRate");
-	const url = `${BASE_URL}?tier=${tier.toString()}&patch=${patch}`;
+	const formatted = patch.split(".", 2).join(".");
+	const url = `${BASE_URL}?tier=${tier.toString()}&patch=${formatted}`;
 	await page.goto(url);
 
 	const winRateElement = await page
@@ -166,9 +168,12 @@ async function getWinRate(page: Page, tier: Tier, patch: string) {
 
 async function getTopPBIChampions(page: Page, tier: Tier, patch: string) {
 	using _ = timer(`get champion pbi for ${tier}`);
-	const url = `${BASE_URL}?tier=${tier.toString()}&patch=${patch}`;
+	const formatted = patch.split(".", 2).join(".");
+	const url = `${BASE_URL}?tier=${tier.toString()}&patch=${formatted}`;
 	console.log(`navigate to ${url}`);
 	await page.goto(url, { waitUntil: "domcontentloaded" });
+
+	const championIDs = await getChampionIDs(patch);
 
 	const pbiHeader = page.getByText("Pick Ban Influence.").locator("../..");
 	await pbiHeader.click();
@@ -185,9 +190,11 @@ async function getTopPBIChampions(page: Page, tier: Tier, patch: string) {
 		process.env.DEBUG &&
 			console.log(await row.locator("div").nth(11).innerText());
 
+		const name = await cell.innerText();
 		const championPBI: ChampionPBI = {
-			name: await cell.innerText(),
+			name,
 			pbi: Number.parseFloat(await row.locator("div").nth(11).innerText()),
+			id: championIDs.find((c) => c.name === name)?.id || "",
 		};
 		champions.push(championPBI);
 	}

@@ -8,8 +8,7 @@ async function getLatestPatch() {
 	const response = await fetch(url);
 	const body = await response.json();
 	const patch: string = body[0];
-	const formatted = patch.split(".", 2).join(".");
-	return formatted;
+	return patch;
 }
 
 const usePlaywright = async () => {
