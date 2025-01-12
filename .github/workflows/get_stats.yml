@@ -15,10 +15,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - uses: actions/setup-node@v1
-      
-      - run: yarn
-      - run: yarn ts-node main.ts
+      - uses: oven-sh/setup-bun@v2
+
+      - run: bun run main.ts
 
       - name: Commit and push if it changed
         run: |-

@@ -1,4 +1,7 @@
+import { type Browser, chromium, type Page } from "playwright";
+
 import { getChampionIDs } from "./ddragon";
+import { sleep } from "bun";
 
 export enum Tier {
 	IRON = "iron",
@@ -11,7 +14,7 @@ export enum Tier {
 	MASTER = "master",
 	GRANDMASTER = "grandmaster",
 	CHALLENGER = "challenger",
-	PLATINUM_PLUS = "platinum_plus",
+	EMERALD_PLUS = "emerald_plus",
 }
 
 export enum Region {
@@ -68,9 +71,9 @@ interface BestBansChampionStats {
 interface BestBansStats {
 	tier: Tier;
 	patch: string;
-	average_win_rate: number;
+	// average_win_rate: number;
 	last_updated: Date;
-	champions: BestBansChampionStats[];
+	champions: ChampionPBI[];
 }
 
 interface LolalyticsLaneStats {
@@ -87,6 +90,20 @@ interface LolalyticsLaneStats {
 	best_win?: string;
 	best_games?: number;
 	best_win_rate_delta?: number;
+}
+
+interface ChampionLaneStats {
+	name: string;
+	lane: Lane;
+	winRate: number;
+	pickRate: number;
+	banRate: number;
+	gamesPlayed: number;
+}
+
+interface ChampionPBI {
+	name: string;
+	pbi: number;
 }
 
 interface LolalyticsStats {
@@ -108,94 +125,87 @@ function jackson_z(winRate, gamesPlayed, expectedWinRate) {
 	);
 }
 
-function convertLolalyticsLaneStats(input): LolalyticsLaneStats {
-	if (input === undefined) {
-		return;
-	}
+const titleCase = (str: string) =>
+	`${str[0].toUpperCase()}${str.slice(1).toLowerCase()}`;
+
+const timer = (msg: string) => {
+	console.time(msg);
 	return {
-		rank: input[0],
-		lane: input[1],
-		tier: input[2],
-		games_won_in_lane: input[3],
-		games_played_in_lane: input[4],
-		games_played_all: input[5],
-		ban_rate: input[6],
+		[Symbol.dispose]: () => {
+			console.timeEnd(msg);
+		},
 	};
-}
+};
 
-function mergeLolalyticsStats(stats: LolalyticsLaneStats[]): LolalyticsStats {
-	const emptyStats: LolalyticsStats = {
-		ban_rate: 0,
-		games_played: 0,
-		games_won: 0,
-	};
-	stats.reduce<LolalyticsStats>((acc, laneStats) => {
-		acc.ban_rate = laneStats.ban_rate;
-		acc.games_played += laneStats.games_played_in_lane;
-		acc.games_won += laneStats.games_won_in_lane;
-		return acc;
-	}, emptyStats);
-	return emptyStats;
-}
+const BASE_URL = "https://lolalytics.com/lol/tierlist/";
 
-async function parseHtml(dom) {}
-
-export async function getStats(
-	tier: Tier,
-	patch: string,
-	region: Region = Region.ALL,
-	storeLaneStats = false,
-): Promise<BestBansStats> {
-	const url = `https://ax.lolalytics.com/tierlist/1/?lane=all&patch=${patch}&tier=${tier}&queue=420&region=${region}`;
+async function loadHtml(page: Page, url: string) {
+	console.log(url);
 	const response = await fetch(url);
-	const body = await response.json();
-	const championIDs = await getChampionIDs(patch);
-	const totalGames = body.pick;
-	const avgWinRate = body.win / totalGames;
+	const body = await response.text();
+	await page.setContent(body);
+}
+
+async function getWinRate(page: Page, tier: Tier, patch: string) {
+	using _ = timer("getWinRate");
+	const url = `${BASE_URL}?tier=${tier.toString()}&patch=${patch}`;
+	await page.goto(url);
+
+	const winRateElement = await page
+		.getByText(`Average ${titleCase(tier)} Win Rate:`)
+		.innerText();
+	const match = winRateElement.match(/(\d+\.\d+)%/);
+	console.log(match);
+
+	if (!match) {
+		throw Error("no win rate found");
+	}
+
+	return Number(match[1]);
+}
+
+async function getTopPBIChampions(page: Page, tier: Tier, patch: string) {
+	using _ = timer(`get champion pbi for ${tier}`);
+	const url = `${BASE_URL}?tier=${tier.toString()}&patch=${patch}`;
+	console.log(`navigate to ${url}`);
+	await page.goto(url, { waitUntil: "domcontentloaded" });
+
+	const pbiHeader = page.getByText("Pick Ban Influence.").locator("../..");
+	await pbiHeader.click();
+	await page.waitForTimeout(1000);
+
+	const nameCells = page
+		.locator(`a[href*="build/"]`)
+		.filter({ hasNot: page.locator("span") });
+	const champions: ChampionPBI[] = [];
+	for (const cell of (await nameCells.all()).slice(0, 5)) {
+		const row = cell.locator("../..");
+
+		process.env.DEBUG && console.log(await cell.innerText());
+		process.env.DEBUG &&
+			console.log(await row.locator("div").nth(11).innerText());
+
+		const championPBI: ChampionPBI = {
+			name: await cell.innerText(),
+			pbi: Number.parseFloat(await row.locator("div").nth(11).innerText()),
+		};
+		champions.push(championPBI);
+	}
+	return champions;
+}
+
+export async function getStatsv2(page: Page, tier: Tier, patch: string) {
+	// const average_win_rate = await getWinRate(page, tier, patch);
+
+	const tierStats = await getTopPBIChampions(page, tier, patch);
 
 	const bestBans: BestBansStats = {
 		tier: tier,
 		patch: patch,
-		average_win_rate: Number.parseFloat(avgWinRate.toFixed(4)),
+		// average_win_rate: Number.parseFloat(average_win_rate.toFixed(4)),
 		last_updated: new Date(),
-		champions: [],
+		champions: tierStats,
 	};
-	for (const key in championIDs) {
-		const championLaneStats: LolalyticsLaneStats[] = [];
-		for (const lane in body.lane) {
-			if (body.lane[lane].cid[key] !== undefined) {
-				const laneStats = convertLolalyticsLaneStats(body.lane[lane].cid[key]);
-				championLaneStats.push(laneStats);
-			}
-		}
-		if (championLaneStats.length === 0) {
-			continue;
-		}
-		const mergedStats = mergeLolalyticsStats(championLaneStats);
-		const championStats: BestBansChampionStats = {
-			key: key,
-			id: championIDs[key].id,
-			name: championIDs[key].name,
-			pick_rate: Number.parseFloat(
-				(mergedStats.games_played / totalGames).toFixed(6),
-			),
-			win_rate: Number.parseFloat(
-				(mergedStats.games_won / mergedStats.games_played).toFixed(4),
-			),
-			ban_rate: Number.parseFloat(mergedStats.ban_rate.toFixed(4)),
-			games_played: mergedStats.games_played,
-		};
-		championStats.ban_score = Number.parseFloat(
-			jackson_z(
-				championStats.win_rate,
-				championStats.games_played,
-				bestBans.average_win_rate,
-			).toFixed(4),
-		);
-		if (storeLaneStats) {
-			championStats.lolalytics_lane_stats = championLaneStats;
-		}
-		bestBans.champions.push(championStats);
-	}
+
 	return bestBans;
 }
