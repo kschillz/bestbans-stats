@@ -31,7 +31,9 @@ const usePlaywright = async () => {
 	let lolalyticsHasData = true;
 	const patch = await getLatestPatch();
 	const path = `static/${patch}`;
-	fs.mkdirSync(path, { recursive: true });
+	if (!fs.existsSync(path)) {
+		fs.mkdirSync(path, { recursive: true });
+	}
 	await using pw = await usePlaywright();
 	const { page } = pw;
 	for (const tier in Tier) {
